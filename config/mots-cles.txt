@@ -20,10 +20,15 @@
 # ============================================================
 
 ## Gendarmerie
+# budget et programmation (ex-thème « Sécurité intérieure »)
+LOPMI
+mission Sécurités
+programme 152
 gendarm
 DGGN
 
 ## Police nationale
+programme 176
 police nationale
 policier
 DGPN
@@ -38,6 +43,7 @@ polices municipales
 garde champêtre
 
 ## Sécurité civile
+programme 161
 sécurité civile
 sapeur-pompier
 sapeurs-pompiers
@@ -48,18 +54,3 @@ feux de forêt
 DGSCGC
 protection civile
 +secours
-
-## Sécurité intérieure
-sécurité intérieure
-LOPMI
-mission Sécurités
-programme 152
-programme 176
-programme 161
-+ordre public
-+maintien de l'ordre
-+renseignement
-+terroris
-+narcotrafic
-+délinquance
-+vidéoprotection
