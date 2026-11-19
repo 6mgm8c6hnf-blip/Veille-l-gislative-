@@ -68,7 +68,7 @@ class Detecteur:
         return principaux + [x for x in appuis if x not in principaux]
 
 
-    def themes_corps(self, texte, seuil=3):
+    def themes_corps(self, texte, seuil=5, detail=None):
         """Pour le corps d'un texte (long) : il faut au moins `seuil` occurrences
         de mots-clés principaux, pour éviter qu'une seule mention isolée suffise."""
         t = norm(texte)
@@ -81,6 +81,8 @@ class Detecteur:
                 appuis.append(theme)
             else:
                 total += n
+                if detail is not None:
+                    detail[rx.pattern.replace("(?<![a-z0-9])", "").replace("(?![a-z0-9])", "").replace("\\", "")] = n
                 if theme not in principaux:
                     principaux.append(theme)
         if total < seuil:

@@ -185,10 +185,12 @@ class Senat:
                     continue
                 lus += 1
                 d, corps = res
-                themes = det.themes_corps(corps)
+                detail = {}
+                themes = det.themes_corps(corps, detail=detail)
                 if themes:
                     d.update(suivi=True, themes=themes, corps=True)
                     trouves += 1
+                    print(f"     + {d['titre'][:90]} — {detail}", flush=True)
         print(f"   Sénat : {lus} textes lus, {trouves} retenus grâce à leur contenu", flush=True)
         return trouves
 

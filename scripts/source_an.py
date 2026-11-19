@@ -137,10 +137,12 @@ class AssembleeNationale:
                     continue
                 lus += 1
                 d, corps = res
-                themes = det.themes_corps(corps)
+                detail = {}
+                themes = det.themes_corps(corps, detail=detail)
                 if themes:
                     d.update(suivi=True, themes=themes, corps=True)
                     trouves += 1
+                    print(f"     + {d['titre'][:90]} — {detail}", flush=True)
         print(f"   AN : {lus} textes lus, {trouves} retenus grâce à leur contenu", flush=True)
         return trouves
 
@@ -263,6 +265,7 @@ class AssembleeNationale:
     def etapes(self):
         ctx = self.ctx
         out = []
+        vus = set()
         for d in self.dossiers.values():
             if not d["suivi"]:
                 continue
@@ -277,6 +280,9 @@ class AssembleeNationale:
                 chambre = "Sénat" if code.startswith("SN") else "AN"
                 if code.startswith("CMP"):
                     lib = "CMP — " + lib
+                if (d["uid"], date[:10], lib, chambre) in vus:
+                    continue  # même étape enregistrée plusieurs fois (ex. une par séance)
+                vus.add((d["uid"], date[:10], lib, chambre))
                 out.append(ctx.evenement(
                     id=f"{d['uid']}-{acte.get('uid')}", debut=date[:10], journee=True, chambre=chambre,
                     type="Étape d'un texte", titre=f"{lib} : {d['titre']}", organe=self.nom_organe(acte.get("organeRef")),
