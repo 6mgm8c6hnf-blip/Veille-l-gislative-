@@ -36,6 +36,15 @@ def _get(url, timeout=40, essais=3):
     raise RuntimeError(f"{url} : {err}")
 
 
+def _https(u):
+    u = (u or "").strip()
+    if u.startswith("//"):
+        return "https:" + u
+    if u.startswith("/"):
+        return "https://www.senat.fr" + u
+    return u.replace("http://", "https://")
+
+
 def _csv(chemin):
     brut = open(chemin, "rb").read()
     try:
@@ -121,7 +130,7 @@ class Senat:
         n = 0
         for row in _csv(telecharger(URL_DOSLEG)):
             titre = row.get("Titre") or ""
-            url = (row.get("URL du dossier") or "").replace("http://", "https://")
+            url = _https(row.get("URL du dossier"))
             themes_senat = row.get("Thèmes") or ""
             themes = det.themes(titre)
             police = "police et securite" in self.ctx.norm(themes_senat)
@@ -215,7 +224,7 @@ class Senat:
                 id=f"senat-am-{num}-{genre}-{jour}", debut=jour, journee=True, chambre="Sénat", type="Amendements",
                 titre=f"{g['n']} amendement{'s' if g['n'] > 1 else ''} déposé{'s' if g['n'] > 1 else ''} ({genre}) — {d['titre']}",
                 organe="Séance publique" if genre == "séance" else "Commission", texte_id=d["url"], texte_titre=d["titre"],
-                texte_url=d["url"], url=(g["url"] or d["url"]).replace("http://", "https://"),
+                texte_url=d["url"], url=_https(g["url"] or d["url"]),
                 description="Exemples :\n" + "\n".join(g["ex"]), themes=d["themes"]))
         return out
 
@@ -235,7 +244,7 @@ class Senat:
                     continue
                 auteur = " ".join(x for x in [row.get("Civilité"), row.get("Prénom"), row.get("Nom")] if x)
                 base = dict(chambre="Sénat", type="Question", organe=ministere,
-                            url=(row.get("URL Question") or "").replace("http://", "https://"), themes=themes,
+                            url=_https(row.get("URL Question")), themes=themes,
                             description=f"{auteur} ({row.get('Groupe') or ''}, {row.get('Circonscription') or ''})\nThèmes : {row.get('Thème(s)') or ''}")
                 lib = f"{NATURE.get(nature, 'Question')} n° {row.get('Numéro')} — {titre}"
                 ref = row.get("Référence") or row.get("Numéro")

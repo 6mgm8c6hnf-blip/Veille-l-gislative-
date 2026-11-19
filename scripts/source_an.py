@@ -88,7 +88,7 @@ class AssembleeNationale:
                 "uid": dp["uid"], "titre": titre, "proc": proc, "themes": themes,
                 "suivi": legislatif and (bool(themes) or force), "force": force,
                 "url": f"{SITE}/dyn/{LEG}/dossiers/{chemin}" if chemin else None,
-                "url_senat": senat, "actes": dp.get("actesLegislatifs"),
+                "url_senat": senat.replace("http://", "https://") if senat else None, "actes": dp.get("actesLegislatifs"),
             }
         return sum(1 for x in self.dossiers.values() if x["suivi"])
 
