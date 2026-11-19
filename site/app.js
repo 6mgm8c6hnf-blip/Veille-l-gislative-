@@ -152,7 +152,6 @@
   function tags(e) {
     let h = '<span class="tag ' + (e.chambre === "AN" ? "AN" : "Senat") + '">' + (e.chambre === "AN" ? "Assemblée" : "Sénat") + "</span>";
     h += '<span class="tag">' + esc(e.type) + "</span>";
-    if (e.huis_clos === true) h += '<span class="tag hc">huis clos</span>';
     if (/^even/i.test(e.etat || "")) h += '<span class="tag">à confirmer</span>';
     (e.themes || []).slice(0, 3).forEach((t) => (h += '<span class="tag kw">' + esc(t) + "</span>"));
     return h;
@@ -263,7 +262,6 @@
       row("Chambre", e.chambre === "AN" ? "Assemblée nationale" : "Sénat") +
       row("Organe", esc(e.organe)) +
       row("Lieu", esc(e.lieu)) +
-      row("Accès", e.huis_clos === true ? "Huis clos" : e.huis_clos === false ? "Ouvert à la presse" : "") +
       row("Texte", e.texte_titre ? (e.texte_url ? '<a href="' + esc(e.texte_url) + '" target="_blank" rel="noopener">' + esc(e.texte_titre) + "</a>" : esc(e.texte_titre)) : "") +
       row("Mots-clés", esc((e.themes || []).join(", "))) +
       row("Source", e.url ? '<a href="' + esc(e.url) + '" target="_blank" rel="noopener">Voir la page officielle ↗</a>' : "") +
