@@ -164,7 +164,7 @@ class Senat:
     def amendements(self):
         ctx = self.ctx
         out = []
-        fini = re.compile(r"promulgu|caduc|rejet|retir|adopt", re.I)
+        fini = re.compile(r"promulgu|caduc|retir", re.I)
         actifs = [d for d in self.dossiers.values() if d["suivi"] and not d["promulgation"] and not fini.search(d["etat"])
                   and d["date"] and d["date"] >= ctx.debut_fenetre_textes]
         actifs.sort(key=lambda d: d["date"], reverse=True)
@@ -192,7 +192,10 @@ class Senat:
             return out
         textes = set(re.findall(r"/leg/(?:pjl|ppl|ppr|tas)(\d{2})-(\d+)\.html", page))
         textes |= set(re.findall(r"/(?:enseance|encommission|amendements(?:/commissions)?)/(\d{4})-\d{4}/(\d+)/", page))
-        groupes = defaultdict(lambda: {"n": 0, "ex": [], "url": None})
+        # texte suivi grâce à un mot-clé de son titre : tous ses amendements ;
+        # texte ajouté à la main (ex. budget) : seulement les amendements qui contiennent un mot-clé
+        tous = bool(d["themes"])
+        groupes = defaultdict(lambda: {"n": 0, "ex": [], "url": None, "themes": set()})
         for an, num in textes:
             an = an if len(an) == 4 else "20" + an
             session = f"{an}-{int(an) + 1}"
@@ -214,7 +217,11 @@ class Senat:
                     jour = (row.get("Date de dépôt") or "")[:10]
                     if not re.match(r"\d{4}-\d{2}-\d{2}", jour) or not ctx.dans_fenetre(jour):
                         continue
+                    themes_am = ctx.detecteur.themes(texte_brut(row.get("Dispositif")), texte_brut(row.get("Objet")))
+                    if not tous and not themes_am:
+                        continue
                     g = groupes[(jour, genre, num)]
+                    g["themes"].update(themes_am)
                     g["n"] += 1
                     g["url"] = g["url"] or row.get("Url amendement")
                     if len(g["ex"]) < 60:
@@ -227,7 +234,7 @@ class Senat:
                 organe="Séance publique" if genre == "séance" else "Commission", texte_id=d["url"], texte_titre=d["titre"],
                 texte_url=d["url"], url=_https(g["url"] or d["url"]),
                 amendements=g["ex"], amendements_autres=max(0, g["n"] - len(g["ex"])),
-                themes=d["themes"]))
+                themes=sorted(set(d["themes"]) | g["themes"])))
         return out
 
     # ---------- questions ----------

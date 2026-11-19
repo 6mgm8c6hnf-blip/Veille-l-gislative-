@@ -3,10 +3,13 @@
 # ============================================================
 #  Les textes dont le titre contient un mot-clé sont suivis
 #  automatiquement. Ajoutez ici les autres textes à suivre :
-#   - soit un morceau du titre (ex. : projet de loi de finances pour 2027)
+#   - soit un morceau du titre (ex. : projet de loi de finances pour 2027, ou « fin de gestion » pour les lois de fin de gestion)
 #   - soit l'adresse de la page du dossier (AN ou Sénat)
 #   - soit l'identifiant AN du dossier (ex. : DLR5L17N52100)
 #  Une ligne par texte. Les lignes avec "#" sont ignorées.
+#  Pour un texte ajouté ici (ex. un budget), l'outil ne garde que
+#  les amendements qui contiennent un mot-clé de mots-cles.txt.
 # ============================================================
 
 projet de loi de finances pour 2027
+fin de gestion
