@@ -63,6 +63,7 @@ class Senat:
     def __init__(self, ctx):
         self.ctx = ctx
         self.dossiers = {}  # url -> infos
+        self.pages = {}  # pages de dossier déjà téléchargées
 
     # ---------- agenda ----------
     def agenda(self):
@@ -145,6 +146,54 @@ class Senat:
             n += suivi
         return n
 
+    # ---------- contenu des textes (pas seulement le titre) ----------
+    def _page(self, url):
+        if url not in self.pages:
+            try:
+                self.pages[url] = (_get(url, timeout=20, essais=2) or b"").decode("utf-8", "replace")
+            except Exception:
+                self.pages[url] = ""
+        return self.pages[url]
+
+    def contenu_textes(self):
+        """Lit le texte des dossiers récents en cours dont le titre n'a pas de mot-clé."""
+        ctx, det = self.ctx, self.ctx.detecteur
+        fini = re.compile(r"promulgu|caduc|retir", re.I)
+        candidats = [d for d in self.dossiers.values() if not d["suivi"] and not d["promulgation"]
+                     and not fini.search(d["etat"]) and d["date"] and d["date"] >= ctx.debut_fenetre_textes]
+        candidats.sort(key=lambda d: d["date"], reverse=True)
+        print(f"   Sénat : {len(candidats)} textes récents à lire", flush=True)
+        limite = time.time() + 360
+
+        def lire(d):
+            if time.time() > limite:
+                return None
+            page = self._page(d["url"])
+            liens = re.findall(r"/leg/((?:pjl|ppl)\d{2}-\d+)\.html", page)
+            if not liens:
+                return d, None
+            try:
+                brut = _get(f"https://www.senat.fr/leg/{liens[0]}.html", timeout=20, essais=2)
+            except Exception:
+                return d, None
+            return d, texte_brut((brut or b"").decode("utf-8", "replace"))
+
+        lus = trouves = 0
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            for res in pool.map(lire, candidats):
+                if not res or not res[1]:
+                    continue
+                lus += 1
+                d, corps = res
+                detail = {}
+                themes = det.themes_corps(corps, detail=detail)
+                if themes:
+                    d.update(suivi=True, themes=themes, corps=True)
+                    trouves += 1
+                    print(f"     + {d['titre'][:90]} — {detail}", flush=True)
+        print(f"   Sénat : {lus} textes lus, {trouves} retenus grâce à leur contenu", flush=True)
+        return trouves
+
     def etapes(self):
         """Dépôt et promulgation des textes suivis au Sénat (les autres étapes viennent des données AN et de l'agenda)."""
         ctx = self.ctx
@@ -164,7 +213,8 @@ class Senat:
     def amendements(self):
         ctx = self.ctx
         out = []
-        fini = re.compile(r"promulgu|caduc|rejet|retir|adopt", re.I)
+        # un texte adopté par une chambre continue sa navette dans l'autre : on ne l'exclut pas
+        fini = re.compile(r"promulgu|caduc|retir", re.I)
         actifs = [d for d in self.dossiers.values() if d["suivi"] and not d["promulgation"] and not fini.search(d["etat"])
                   and d["date"] and d["date"] >= ctx.debut_fenetre_textes]
         actifs.sort(key=lambda d: d["date"], reverse=True)
@@ -186,13 +236,15 @@ class Senat:
         out = []
         if time.time() > limite:
             return out
-        try:
-            page = (_get(d["url"], timeout=20, essais=2) or b"").decode("utf-8", "replace")
-        except Exception:
+        page = self._page(d["url"])
+        if not page:
             return out
         textes = set(re.findall(r"/leg/(?:pjl|ppl|ppr|tas)(\d{2})-(\d+)\.html", page))
         textes |= set(re.findall(r"/(?:enseance|encommission|amendements(?:/commissions)?)/(\d{4})-\d{4}/(\d+)/", page))
-        groupes = defaultdict(lambda: {"n": 0, "ex": [], "url": None})
+        # texte suivi grâce à un mot-clé de son titre : tous ses amendements ;
+        # texte ajouté à la main (ex. budget) : seulement les amendements qui contiennent un mot-clé
+        tous = bool(d["themes"]) and not d.get("corps")
+        groupes = defaultdict(lambda: {"n": 0, "ex": [], "url": None, "themes": set()})
         for an, num in textes:
             an = an if len(an) == 4 else "20" + an
             session = f"{an}-{int(an) + 1}"
@@ -214,7 +266,11 @@ class Senat:
                     jour = (row.get("Date de dépôt") or "")[:10]
                     if not re.match(r"\d{4}-\d{2}-\d{2}", jour) or not ctx.dans_fenetre(jour):
                         continue
+                    themes_am = ctx.detecteur.themes(texte_brut(row.get("Dispositif")), texte_brut(row.get("Objet")))
+                    if not tous and not themes_am:
+                        continue
                     g = groupes[(jour, genre, num)]
+                    g["themes"].update(themes_am)
                     g["n"] += 1
                     g["url"] = g["url"] or row.get("Url amendement")
                     if len(g["ex"]) < 60:
@@ -227,7 +283,7 @@ class Senat:
                 organe="Séance publique" if genre == "séance" else "Commission", texte_id=d["url"], texte_titre=d["titre"],
                 texte_url=d["url"], url=_https(g["url"] or d["url"]),
                 amendements=g["ex"], amendements_autres=max(0, g["n"] - len(g["ex"])),
-                themes=d["themes"]))
+                themes=sorted(set(d["themes"]) | g["themes"])))
         return out
 
     # ---------- questions ----------

@@ -1,9 +1,12 @@
 """Collecte Assemblée nationale (data.assemblee-nationale.fr, 17e législature)."""
 import json
 import re
+import time
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 
-from commun import fichiers_zip, ligne_amendement, premier, telecharger, texte_brut
+from commun import UA, fichiers_zip, ligne_amendement, premier, telecharger, texte_brut
 
 LEG = "17"
 BASE = f"https://data.assemblee-nationale.fr/static/openData/repository/{LEG}"
@@ -94,6 +97,54 @@ class AssembleeNationale:
                 "url_senat": senat.replace("http://", "https://") if senat else None, "actes": dp.get("actesLegislatifs"),
             }
         return sum(1 for x in self.dossiers.values() if x["suivi"])
+
+    # ---------- contenu des textes (pas seulement le titre) ----------
+    def contenu_textes(self):
+        """Lit le texte déposé des projets/propositions de loi actifs dont le titre n'a pas de mot-clé.
+        S'il contient assez de mots-clés, le texte devient suivi (et seuls ses amendements
+        contenant un mot-clé seront affichés)."""
+        ctx, det = self.ctx, self.ctx.detecteur
+        initial = {}
+        for uid, doc in self.docs.items():
+            if doc.get("dossier") and re.match(r"(PRJL|PION)", uid):
+                initial.setdefault(doc["dossier"], []).append(uid)
+        candidats = []
+        for d in self.dossiers.values():
+            if d["suivi"] or not re.search(r"loi", d["proc"], re.I) or d["uid"] not in initial:
+                continue
+            dates = [(_date(a.get("dateActe")) or "") for a in self._feuilles(d["actes"])]
+            if max(dates, default="") >= ctx.debut:  # texte qui a bougé récemment
+                candidats.append((max(dates), d, sorted(initial[d["uid"]])[0]))
+        candidats.sort(key=lambda x: x[0], reverse=True)
+        limite = time.time() + 360
+        print(f"   AN : {len(candidats)} textes récents à lire", flush=True)
+
+        def lire(c):
+            _, d, doc_uid = c
+            if time.time() > limite:
+                return None
+            req = urllib.request.Request(f"{SITE}/dyn/opendata/{doc_uid}.html", headers={"User-Agent": UA})
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    return d, texte_brut(r.read().decode("utf-8", "replace"))
+            except Exception:
+                return d, None
+
+        lus = trouves = 0
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            for res in pool.map(lire, candidats):
+                if not res or not res[1]:
+                    continue
+                lus += 1
+                d, corps = res
+                detail = {}
+                themes = det.themes_corps(corps, detail=detail)
+                if themes:
+                    d.update(suivi=True, themes=themes, corps=True)
+                    trouves += 1
+                    print(f"     + {d['titre'][:90]} — {detail}", flush=True)
+        print(f"   AN : {lus} textes lus, {trouves} retenus grâce à leur contenu", flush=True)
+        return trouves
 
     def dossier(self, uid):
         return self.dossiers.get(uid) or {}
@@ -214,6 +265,7 @@ class AssembleeNationale:
     def etapes(self):
         ctx = self.ctx
         out = []
+        vus = set()
         for d in self.dossiers.values():
             if not d["suivi"]:
                 continue
@@ -228,6 +280,9 @@ class AssembleeNationale:
                 chambre = "Sénat" if code.startswith("SN") else "AN"
                 if code.startswith("CMP"):
                     lib = "CMP — " + lib
+                if (d["uid"], date[:10], lib, chambre) in vus:
+                    continue  # même étape enregistrée plusieurs fois (ex. une par séance)
+                vus.add((d["uid"], date[:10], lib, chambre))
                 out.append(ctx.evenement(
                     id=f"{d['uid']}-{acte.get('uid')}", debut=date[:10], journee=True, chambre=chambre,
                     type="Étape d'un texte", titre=f"{lib} : {d['titre']}", organe=self.nom_organe(acte.get("organeRef")),
@@ -271,7 +326,7 @@ class AssembleeNationale:
             parts = nom.split("/")
             dos_uid = parts[1] if len(parts) >= 4 else None
             d0 = self.dossier(dos_uid)
-            suivi = d0.get("suivi") and bool(d0.get("themes"))  # texte "sécurité" : tous ses amendements
+            suivi = d0.get("suivi") and bool(d0.get("themes")) and not d0.get("corps")  # texte "sécurité" : tous ses amendements
             # lecture rapide de la date de dépôt sans tout décoder
             m = re.search(rb'"dateDepot":\s*"(\d{4}-\d{2}-\d{2})', b)
             if not m or not ctx.dans_fenetre(m.group(1).decode()):
