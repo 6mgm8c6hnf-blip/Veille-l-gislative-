@@ -159,9 +159,8 @@ class Senat:
         """Lit le texte des dossiers récents en cours dont le titre n'a pas de mot-clé."""
         ctx, det = self.ctx, self.ctx.detecteur
         fini = re.compile(r"promulgu|caduc|retir", re.I)
-        debut = (date.today() - timedelta(days=365)).isoformat()
         candidats = [d for d in self.dossiers.values() if not d["suivi"] and not d["promulgation"]
-                     and not fini.search(d["etat"]) and d["date"] and d["date"] >= debut]
+                     and not fini.search(d["etat"]) and d["date"] and d["date"] >= ctx.debut_fenetre_textes]
         candidats.sort(key=lambda d: d["date"], reverse=True)
         print(f"   Sénat : {len(candidats)} textes récents à lire", flush=True)
         limite = time.time() + 360
@@ -212,6 +211,7 @@ class Senat:
     def amendements(self):
         ctx = self.ctx
         out = []
+        # un texte adopté par une chambre continue sa navette dans l'autre : on ne l'exclut pas
         fini = re.compile(r"promulgu|caduc|retir", re.I)
         actifs = [d for d in self.dossiers.values() if d["suivi"] and not d["promulgation"] and not fini.search(d["etat"])
                   and d["date"] and d["date"] >= ctx.debut_fenetre_textes]
