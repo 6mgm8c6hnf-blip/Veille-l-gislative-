@@ -9,6 +9,11 @@
 #     "gendarmerie" trouve aussi "Gendarmerie" et "GENDARMERIE".
 #   - Un mot-clé trouve aussi les mots qui le prolongent :
 #     "gendarm" trouve "gendarme", "gendarmes", "gendarmerie".
+#   - Un mot-clé précédé de "+" est un mot-clé d'APPUI : il ne
+#     suffit pas à lui seul. Il ne compte que si un mot-clé
+#     principal (sans "+") est aussi présent. Exemple : "+terroris"
+#     garde une question sur le terrorisme seulement si elle parle
+#     aussi de gendarmerie, de police, etc.
 #   - Les lignes qui commencent par "#" sont des commentaires.
 #  Après modification, le site se met à jour à la prochaine
 #  collecte (chaque nuit), ou tout de suite via l'onglet Actions.
@@ -38,11 +43,11 @@ sapeur-pompier
 sapeurs-pompiers
 pompier
 SDIS
-incendie
++incendie
 feux de forêt
 DGSCGC
 protection civile
-secours
++secours
 
 ## Sécurité intérieure
 sécurité intérieure
@@ -51,10 +56,10 @@ mission Sécurités
 programme 152
 programme 176
 programme 161
-ordre public
-maintien de l'ordre
-renseignement
-terroris
-narcotrafic
-délinquance
-vidéoprotection
++ordre public
++maintien de l'ordre
++renseignement
++terroris
++narcotrafic
++délinquance
++vidéoprotection
