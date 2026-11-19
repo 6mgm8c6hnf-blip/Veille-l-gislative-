@@ -2,7 +2,7 @@
 
 Un site web qui rassemble, dans un **calendrier** et une **liste filtrable**, toutes les échéances utiles de l'Assemblée nationale et du Sénat sur la **gendarmerie**, la **police** et la **sécurité civile** :
 
-- les **auditions** et **réunions de commission** (publiques ou à huis clos) ;
+- les **auditions** et **réunions de commission** ;
 - les **séances publiques** consacrées aux textes suivis ;
 - les **étapes des projets et propositions de loi** (dépôt, examen en commission, séance, CMP, promulgation) ;
 - les **amendements** déposés sur ces textes, et les **dates limites de dépôt** quand elles sont publiées ;
