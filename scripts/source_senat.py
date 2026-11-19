@@ -18,9 +18,10 @@ NATURE = {"QE": "Question écrite", "QOSD": "Question orale", "QO": "Question or
           "QC": "Question cribles", "QOAD": "Question orale avec débat"}
 
 
-def _get(url, timeout=40):
+def _get(url, timeout=40, essais=3):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json, text/html, */*"})
-    for essai in range(3):
+    err = None
+    for essai in range(essais):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read()
@@ -62,11 +63,13 @@ class Senat:
         erreurs = 0
         while jour <= ctx.fin_fenetre_agenda:
             try:
-                brut = _get(API_AGENDA.format(d=jour.isoformat()), timeout=30)
+                brut = _get(API_AGENDA.format(d=jour.isoformat()), timeout=15, essais=2)
                 data = json.loads(brut) if brut else {}
-            except Exception:
+                erreurs = 0
+            except Exception as e:
+                print(f"   Sénat agenda {jour} : {e}", flush=True)
                 erreurs += 1
-                if erreurs > 10:
+                if erreurs >= 3:
                     raise
                 jour += timedelta(days=1)
                 continue
