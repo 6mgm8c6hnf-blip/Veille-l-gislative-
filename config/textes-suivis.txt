@@ -1,0 +1,12 @@
+# ============================================================
+#  TEXTES SUIVIS EN PLUS DES MOTS-CLÉS
+# ============================================================
+#  Les textes dont le titre contient un mot-clé sont suivis
+#  automatiquement. Ajoutez ici les autres textes à suivre :
+#   - soit un morceau du titre (ex. : projet de loi de finances pour 2027)
+#   - soit l'adresse de la page du dossier (AN ou Sénat)
+#   - soit l'identifiant AN du dossier (ex. : DLR5L17N52100)
+#  Une ligne par texte. Les lignes avec "#" sont ignorées.
+# ============================================================
+
+projet de loi de finances pour 2027

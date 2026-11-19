@@ -1,0 +1,60 @@
+# ============================================================
+#  MOTS-CLÉS DE LA VEILLE
+# ============================================================
+#  Comment modifier ce fichier (directement sur GitHub) :
+#   - Une ligne qui commence par "##" crée un THÈME (il apparaît
+#     dans le filtre « Thème » du site).
+#   - En dessous, écrivez un mot-clé par ligne.
+#   - Les majuscules et les accents ne comptent pas :
+#     "gendarmerie" trouve aussi "Gendarmerie" et "GENDARMERIE".
+#   - Un mot-clé trouve aussi les mots qui le prolongent :
+#     "gendarm" trouve "gendarme", "gendarmes", "gendarmerie".
+#   - Les lignes qui commencent par "#" sont des commentaires.
+#  Après modification, le site se met à jour à la prochaine
+#  collecte (chaque nuit), ou tout de suite via l'onglet Actions.
+# ============================================================
+
+## Gendarmerie
+gendarm
+DGGN
+
+## Police nationale
+police nationale
+policier
+DGPN
+commissariat
+CRS
+forces de l'ordre
+forces de sécurité intérieure
+
+## Polices municipales
+police municipale
+polices municipales
+garde champêtre
+
+## Sécurité civile
+sécurité civile
+sapeur-pompier
+sapeurs-pompiers
+pompier
+SDIS
+incendie
+feux de forêt
+DGSCGC
+protection civile
+secours
+
+## Sécurité intérieure
+sécurité intérieure
+LOPMI
+mission Sécurités
+programme 152
+programme 176
+programme 161
+ordre public
+maintien de l'ordre
+renseignement
+terroris
+narcotrafic
+délinquance
+vidéoprotection

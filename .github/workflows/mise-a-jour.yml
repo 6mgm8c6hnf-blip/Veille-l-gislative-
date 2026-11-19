@@ -1,0 +1,72 @@
+# Mise à jour quotidienne des données et publication du site.
+# - tourne chaque matin (vers 5 h 15, heure de Paris) ;
+# - peut être lancé à la main : onglet « Actions » > « Mise à jour du site » > « Run workflow » ;
+# - se relance aussi quand on modifie les mots-clés, les commissions ou le site.
+name: Mise à jour du site
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["config/**", "scripts/**", "site/*.html", "site/*.js", "site/*.css", ".github/workflows/mise-a-jour.yml"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mise-a-jour-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collecter les données de l'Assemblée nationale et du Sénat
+        run: python scripts/collecte.py
+
+      # Sur les branches de test : on garde juste le résultat en pièce jointe du run.
+      - name: Résultat du test (branches autres que main)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: evenements
+          path: site/data/evenements.json
+
+      - name: Enregistrer les nouvelles données dans le dépôt
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "veille-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/evenements.json
+          if git diff --cached --quiet; then echo "Pas de changement"; exit 0; fi
+          git commit -m "Données du $(date +%d/%m/%Y)"
+          git pull --rebase origin main && git push origin HEAD:main
+
+      - uses: actions/configure-pages@v5
+        if: github.ref == 'refs/heads/main'
+      - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: site
+
+  publication:
+    if: github.ref == 'refs/heads/main'
+    needs: collecte
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - id: deploiement
+        uses: actions/deploy-pages@v4
