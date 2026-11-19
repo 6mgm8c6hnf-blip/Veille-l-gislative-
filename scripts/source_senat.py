@@ -9,7 +9,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
-from commun import UA, telecharger, texte_brut
+from commun import UA, ligne_amendement, telecharger, texte_brut
 
 API_AGENDA = "https://www.senat.fr/api/v1/agenda/events?date={d}"
 URL_DOSLEG = "https://data.senat.fr/data/dosleg/dossiers-legislatifs.csv"
@@ -217,15 +217,17 @@ class Senat:
                     g = groupes[(jour, genre, num)]
                     g["n"] += 1
                     g["url"] = g["url"] or row.get("Url amendement")
-                    if len(g["ex"]) < 8:
-                        g["ex"].append(f"n° {row.get('Numéro')} {row.get('Subdivision', '')} — {row.get('Auteur', '')}".strip())
+                    if len(g["ex"]) < 60:
+                        g["ex"].append({"t": ligne_amendement(row.get("Numéro"), row.get("Subdivision"), row.get("Auteur")),
+                                         "u": _https(row.get("Url amendement") or "") or None})
         for (jour, genre, num), g in groupes.items():
             out.append(ctx.evenement(
                 id=f"senat-am-{num}-{genre}-{jour}", debut=jour, journee=True, chambre="Sénat", type="Amendements",
                 titre=f"{g['n']} amendement{'s' if g['n'] > 1 else ''} déposé{'s' if g['n'] > 1 else ''} ({genre}) — {d['titre']}",
                 organe="Séance publique" if genre == "séance" else "Commission", texte_id=d["url"], texte_titre=d["titre"],
                 texte_url=d["url"], url=_https(g["url"] or d["url"]),
-                description="Exemples :\n" + "\n".join(g["ex"]), themes=d["themes"]))
+                amendements=g["ex"], amendements_autres=max(0, g["n"] - len(g["ex"])),
+                themes=d["themes"]))
         return out
 
     # ---------- questions ----------
