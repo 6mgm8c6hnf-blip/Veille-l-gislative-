@@ -12,36 +12,22 @@ jobs:
           set +e
           cd /tmp
           AN=https://data.assemblee-nationale.fr/static/openData/repository/17
-          for u in $AN/vp/reunions/Agenda.json.zip $AN/amo/deputes_actifs_mandats_actifs_organes/AMO10_deputes_actifs_mandats_actifs_organes.json.zip; do
-            f=$(basename $u); echo "=== $u"; curl -sSL -o $f -w '%{http_code} %{size_download} %{time_total}\n' -m 240 $u; unzip -l $f | tail -1
-          done
-          for u in $AN/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip $AN/questions/questions_gouvernement/Questions_gouvernement.json.zip $AN/questions/questions_ecrites/Questions_ecrites.json.zip $AN/questions/questions_orales_sans_debat/Questions_orales_sans_debat.json.zip $AN/loi/amendements_div_legis/Amendements.json.zip $AN/loi/amendements_div_legis/Amendements_XVII.json.zip; do
-            echo "=== HEAD $u"; curl -sSIL -m 30 $u | grep -iE 'HTTP/|content-length|last-modified'
-          done
-          unzip -o -q Agenda.json.zip -d agenda; find agenda -maxdepth 3 -type d; find agenda -name '*.json' | wc -l
-          f=$(grep -l '"PO59051"' $(find agenda -name '*.json') | sort | tail -1); echo "FILE $f"; python3 -m json.tool $f | head -170
-          f=$(grep -l 'seance_type' $(find agenda -name '*.json') | sort | tail -1); echo "FILE $f"; python3 -m json.tool $f | head -90
-          echo "--- keys"; grep -ho '"[a-zA-Z@:]*":' $(find agenda -name '*.json' | tail -3000) | sort | uniq -c | sort -rn | head -80
-          grep -ho '"typePointODJ": *"[^"]*"' $(find agenda -name '*.json') | sort | uniq -c | sort -rn | head
-          grep -ho '"ouverturePresse": *"[^"]*"' $(find agenda -name '*.json') | sort | uniq -c
-          grep -ho '"timestampDebut": *"[^"]*"' $(find agenda -name '*.json') | sort | tail -3
-          unzip -o -q AMO10_deputes_actifs_mandats_actifs_organes.json.zip -d amo; find amo -maxdepth 2 -type d
-          for p in PO59051 PO59046 PO59048; do f=$(find amo -name "$p.json"); python3 -m json.tool $f | head -30; done
-  an2:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - run: |
-          set +e
-          cd /tmp
-          AN=https://data.assemblee-nationale.fr/static/openData/repository/17
-          for u in $AN/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip $AN/questions/questions_gouvernement/Questions_gouvernement.json.zip; do
-            f=$(basename $u); echo "=== $u"; curl -sSL -o $f -w '%{http_code} %{size_download} %{time_total}\n' -m 400 $u; unzip -l $f | tail -1
-          done
-          unzip -o -q Dossiers_Legislatifs.json.zip -d dos; find dos -maxdepth 3 -type d
-          f=$(grep -il 'sécurité' $(find dos -path '*dossierParlementaire*' -name '*.json') | tail -1); echo FILE $f; python3 -m json.tool $f | head -220
-          f=$(find dos -path '*document*' -name '*.json' | sort | tail -1); echo FILE $f; python3 -m json.tool $f | head -100
-          unzip -o -q Questions_gouvernement.json.zip -d qg; find qg -maxdepth 3 -type d; f=$(find qg -name '*.json' | sort | tail -1); echo FILE $f; python3 -m json.tool $f | head -140
+          curl -sSL -o d.zip $AN/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip; unzip -o -q d.zip -d dos
+          f=$(grep -l 'curit' $(find dos -path '*dossierParlementaire*' -name '*.json') | grep -v xx | sort | tail -1); echo FILE $f; python3 -c "
+          import json,sys
+          d=json.load(open('$f'))
+          s=json.dumps(d,ensure_ascii=False,indent=1)
+          print(s[:9000])"
+          echo "=== depotAmendements samples"; grep -h -o '"depotAmendements": *{[^}]*}[^}]*}' $(find dos -path '*document*' -name '*.json') | head -8
+          echo "=== codeActe counts"; cat $(find dos -path '*dossierParlementaire*' -name '*.json') | grep -o '"codeActe": *"[^"]*"' | sort | uniq -c | sort -rn | head -60
+          echo "=== QE"; curl -sSL -o qe.zip $AN/questions/questions_ecrites/Questions_ecrites.json.zip; unzip -o -q qe.zip -d qe; ls qe/json | wc -l; f=$(ls qe/json/* | sort -V | tail -1); python3 -c "
+          import json; d=json.load(open('$f')); q=d['question']
+          for k in ('textesReponse',): q.pop(k,None)
+          print(json.dumps(d,ensure_ascii=False,indent=1)[:4000])"
+          echo "=== QOSD"; curl -sSL -o qo.zip $AN/questions/questions_orales_sans_debat/Questions_orales_sans_debat.json.zip; unzip -o -q qo.zip -d qo; f=$(ls qo/json/* | sort -V | tail -1); python3 -m json.tool $f | head -80
+          echo "=== AMENDEMENTS"; time curl -sSL -o am.zip $AN/loi/amendements_div_legis/Amendements.json.zip; unzip -l am.zip | head -8; unzip -l am.zip | tail -2
+          f=$(unzip -Z1 am.zip | grep json$ | tail -1); unzip -p am.zip "$f" | python3 -m json.tool | head -150
+          unzip -Z1 am.zip | awk -F/ '{print NF}' | sort | uniq -c
   senat:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -49,10 +35,9 @@ jobs:
       - run: |
           set +e
           cd /tmp
-          for u in https://data.senat.fr/data/dosleg/dossiers-legislatifs.csv https://data.senat.fr/data/dosleg/dosleg.zip https://data.senat.fr/data/ameli/ameli.zip https://data.senat.fr/data/questions/questions.zip https://www.senat.fr/rss/rss.html https://www.senat.fr/rss/agenda.rss https://www.senat.fr/rss/questions.rss https://www.senat.fr/rss/textes.rss https://www.senat.fr/agenda/agenda.ics; do
-            echo "=== $u"; curl -sSL -o s.bin -w '%{http_code} %{size_download} %{content_type}\n' -m 60 "$u"; file s.bin; head -c 1200 s.bin | iconv -f utf8 -t utf8 -c; echo
+          for u in https://data.senat.fr/data/dosleg/dossiers-legislatifs.csv https://data.senat.fr/dosleg/ https://data.senat.fr/la-base-questions/ https://data.senat.fr/ameli/ https://www.senat.fr/flux-rss.html https://agenda.senat.fr/ https://www.senat.fr/ordre-du-jour/ordre-du-jour.html; do
+            echo "=== $u"; curl -sSL -o s.bin -w '%{http_code} %{size_download} %{content_type}\n' -m 60 "$u"
+            if [[ "$u" == *.csv ]]; then iconv -f latin1 -t utf8 s.bin | head -5; wc -l s.bin; else
+            grep -oE '(href|src)="[^"]+"' s.bin | sort -u | grep -viE 'connaitre|le-senat-et-vous|europe-et|lng/|assets/static|travailler|prix' | head -120; fi
           done
-          echo "=== data.senat.fr links"; curl -sSL -m 30 https://data.senat.fr/ | grep -oE 'href="[^"]+"' | sort -u | head -120
-          echo "=== senat rss"; curl -sSL -m 30 https://www.senat.fr/rss/ | grep -oE 'href="[^"]+"' | sort -u | head -120
-          echo "=== senat agenda"; curl -sSL -m 30 https://www.senat.fr/agenda/ | grep -oE 'href="[^"]+"' | sort -u | head -150
-          echo "=== commission lois"; curl -sSL -m 30 https://www.senat.fr/commission/loi/index.html | grep -oE 'href="[^"]+"' | sort -u | head -100
+          echo "=== agenda.senat.fr body"; curl -sSL -m 60 https://agenda.senat.fr/ | head -c 6000
