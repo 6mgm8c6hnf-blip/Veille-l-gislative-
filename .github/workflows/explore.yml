@@ -1,0 +1,43 @@
+name: explore
+on:
+  push:
+    branches: [claude/project-thread-s0s7gz]
+    paths: [.github/workflows/explore.yml]
+jobs:
+  x:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          set +e
+          cd /tmp
+          AN=https://data.assemblee-nationale.fr/static/openData/repository/17
+          for u in \
+            $AN/vp/reunions/Agenda.json.zip \
+            $AN/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip \
+            $AN/questions/questions_gouvernement/Questions_gouvernement.json.zip \
+            $AN/questions/questions_ecrites/Questions_ecrites.json.zip \
+            $AN/questions/questions_orales_sans_debat/Questions_orales_sans_debat.json.zip \
+            $AN/amo/deputes_actifs_mandats_actifs_organes/AMO10_deputes_actifs_mandats_actifs_organes.json.zip \
+            $AN/loi/amendements_div_legis/Amendements.json.zip \
+            ; do
+            f=$(basename $u)
+            echo "=== $u"; curl -sSL -o $f -w '%{http_code} %{size_download}\n' -m 600 $u
+            unzip -l $f | head -5; unzip -l $f | tail -2
+          done
+          echo "=== SAMPLES"
+          unzip -o -q Agenda.json.zip -d agenda; ls agenda; ls agenda/* | head -3
+          f=$(ls -t agenda/json/reunion/*.json | head -1); python3 -m json.tool $f | head -150
+          grep -l PO59051 agenda/json/reunion/*.json | tail -1 | xargs python3 -m json.tool | head -200
+          unzip -o -q Dossiers_Legislatifs.json.zip -d dos; ls dos/json; f=$(ls dos/json/dossierParlementaire/*.json | tail -1); python3 -m json.tool $f | head -200
+          f=$(ls dos/json/document/*.json | tail -1); python3 -m json.tool $f | head -120
+          unzip -o -q Questions_gouvernement.json.zip -d qg; f=$(ls qg/json/*/*.json 2>/dev/null | tail -1); [ -z "$f" ] && f=$(find qg -name '*.json' | tail -1); python3 -m json.tool $f | head -120
+          find qg -name '*.json' | wc -l
+          unzip -o -q AMO10_deputes_actifs_mandats_actifs_organes.json.zip -d amo; ls amo/json; for p in PO59051 PO59046 PO59048; do python3 -c "import json,sys;d=json.load(open('amo/json/organe/$p.json'));print('$p',d['organe']['libelle'],d['organe'].get('codeType'))"; done
+          unzip -l Amendements.json.zip | head -20
+          SEN=https://data.senat.fr
+          for u in $SEN/data/dosleg/dossiers-legislatifs.csv $SEN/data/dosleg/dosleg.zip $SEN/data/ameli/ameli.zip $SEN/data/questions/questions.zip $SEN/data/questions/questions.csv https://www.senat.fr/rss/questions.rss https://www.senat.fr/rss/agenda.rss https://www.senat.fr/agenda/agenda.ics https://www.senat.fr/rss/textes.rss https://www.senat.fr/rss/commissions.rss ; do
+            echo "=== $u"; curl -sSL -o s.bin -w '%{http_code} %{size_download} %{content_type}\n' -m 300 "$u"; head -c 1500 s.bin | iconv -f latin1 -t utf8 2>/dev/null; echo
+          done
+          curl -sSL https://data.senat.fr/ | grep -oE 'href="[^"]+"' | sort -u | head -150
+          curl -sSL https://www.senat.fr/rss/index.html | grep -oE 'href="[^"]+"' | sort -u | head -150
+          curl -sSL https://www.senat.fr/agenda/ | grep -oE 'href="[^"]+"' | sort -u | head -100
