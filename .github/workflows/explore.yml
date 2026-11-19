@@ -4,30 +4,6 @@ on:
     branches: [claude/project-thread-s0s7gz]
     paths: [.github/workflows/explore.yml]
 jobs:
-  an:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - run: |
-          set +e
-          cd /tmp
-          AN=https://data.assemblee-nationale.fr/static/openData/repository/17
-          curl -sSL -o d.zip $AN/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip; unzip -o -q d.zip -d dos
-          f=$(grep -l 'curit' $(find dos -path '*dossierParlementaire*' -name '*.json') | grep -v xx | sort | tail -1); echo FILE $f; python3 -c "
-          import json,sys
-          d=json.load(open('$f'))
-          s=json.dumps(d,ensure_ascii=False,indent=1)
-          print(s[:9000])"
-          echo "=== depotAmendements samples"; grep -h -o '"depotAmendements": *{[^}]*}[^}]*}' $(find dos -path '*document*' -name '*.json') | head -8
-          echo "=== codeActe counts"; cat $(find dos -path '*dossierParlementaire*' -name '*.json') | grep -o '"codeActe": *"[^"]*"' | sort | uniq -c | sort -rn | head -60
-          echo "=== QE"; curl -sSL -o qe.zip $AN/questions/questions_ecrites/Questions_ecrites.json.zip; unzip -o -q qe.zip -d qe; ls qe/json | wc -l; f=$(ls qe/json/* | sort -V | tail -1); python3 -c "
-          import json; d=json.load(open('$f')); q=d['question']
-          for k in ('textesReponse',): q.pop(k,None)
-          print(json.dumps(d,ensure_ascii=False,indent=1)[:4000])"
-          echo "=== QOSD"; curl -sSL -o qo.zip $AN/questions/questions_orales_sans_debat/Questions_orales_sans_debat.json.zip; unzip -o -q qo.zip -d qo; f=$(ls qo/json/* | sort -V | tail -1); python3 -m json.tool $f | head -80
-          echo "=== AMENDEMENTS"; time curl -sSL -o am.zip $AN/loi/amendements_div_legis/Amendements.json.zip; unzip -l am.zip | head -8; unzip -l am.zip | tail -2
-          f=$(unzip -Z1 am.zip | grep json$ | tail -1); unzip -p am.zip "$f" | python3 -m json.tool | head -150
-          unzip -Z1 am.zip | awk -F/ '{print NF}' | sort | uniq -c
   senat:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -35,9 +11,15 @@ jobs:
       - run: |
           set +e
           cd /tmp
-          for u in https://data.senat.fr/data/dosleg/dossiers-legislatifs.csv https://data.senat.fr/dosleg/ https://data.senat.fr/la-base-questions/ https://data.senat.fr/ameli/ https://www.senat.fr/flux-rss.html https://agenda.senat.fr/ https://www.senat.fr/ordre-du-jour/ordre-du-jour.html; do
-            echo "=== $u"; curl -sSL -o s.bin -w '%{http_code} %{size_download} %{content_type}\n' -m 60 "$u"
-            if [[ "$u" == *.csv ]]; then iconv -f latin1 -t utf8 s.bin | head -5; wc -l s.bin; else
-            grep -oE '(href|src)="[^"]+"' s.bin | sort -u | grep -viE 'connaitre|le-senat-et-vous|europe-et|lng/|assets/static|travailler|prix' | head -120; fi
-          done
-          echo "=== agenda.senat.fr body"; curl -sSL -m 60 https://agenda.senat.fr/ | head -c 6000
+          echo "=== API paths in nuxt bundles"
+          for js in $(curl -sSL https://agenda.senat.fr/ | grep -oE '/_nuxt/[A-Za-z0-9_-]+\.js' | sort -u); do curl -sSL "https://agenda.senat.fr$js" > b.js; grep -oE '.{120}apiUrl.{200}' b.js | head -5; grep -oE '"/[a-zA-Z_/-]*(agenda|event|evenement|reunion|seance|commission)[a-zA-Z_/{}-]*"' b.js | sort -u | head -20; grep -oE '`[^`]{0,80}(\$\{[^}]+\})[^`]{0,80}`' b.js | grep -iE 'api|agenda|date' | head -10; done
+          for p in "" "/" "/jour/2026-11-25" "/2026-11-25" "?date=2026-11-25" "/events?date=2026-11-25" "/semaine/2026-11-23" "/evenements" "/organes" "/commissions"; do echo "=== API $p"; curl -sS -m 20 -w '  [%{http_code} %{content_type}]\n' "https://www.senat.fr/api/v1/agenda$p" | head -c 1500; echo; done
+          echo "=== questions CSV"; for f in questions-depuis-un-an.csv qg.csv; do curl -sSL -o $f https://data.senat.fr/data/questions/$f; wc -l $f; iconv -f latin1 -t utf8 $f | head -4 | cut -c1-1500; file $f; done
+          echo "=== dosleg police"; curl -sSL -o d.csv https://data.senat.fr/data/dosleg/dossiers-legislatifs.csv; iconv -f latin1 -t utf8 d.csv | grep -i 'Police et s' | grep -E '/20(25|26)"' | head -10; iconv -f latin1 -t utf8 d.csv | awk -F';' '{print $3}' | cut -c8-11 | sort | uniq -c | tail -4
+          iconv -f latin1 -t utf8 d.csv | grep -E '"[0-9]{2}/[0-9]{2}/2026"' | head -3
+          u=$(iconv -f latin1 -t utf8 d.csv | grep -i 'Police et s' | grep -E '"[0-9]{2}/[0-9]{2}/202[56]"' | head -1 | grep -oE 'https?://www.senat.fr/dossier-legislatif/[^"]+'); echo "DOSSIER $u"
+          curl -sSL "$u" -o dl.html; grep -oE 'href="[^"]*(amendements|encommission|enseance|leg/|rap/)[^"]*"' dl.html | sort -u | head -40
+          echo "=== jeu complet"; curl -sSL https://www.senat.fr/amendements/2013-2014/190/jeu_complet_2013-2014_190.csv | iconv -f latin1 -t utf8 | head -3 | cut -c1-800
+          curl -sSL https://www.senat.fr/enseance/2017-2018/330/liste_discussion.json | head -c 1500; echo
+          echo "=== AN URL checks"
+          for u in https://www.assemblee-nationale.fr/dyn/17/reunions/RUANR5L17S2027IDC461754 https://www.assemblee-nationale.fr/dyn/reunions/RUANR5L17S2027IDC461754 https://www.assemblee-nationale.fr/dyn/17/amendements/AMANR5L17PO838901BTC2200P0D1N000043 https://www.assemblee-nationale.fr/dyn/17/amendements/2200/AN/43 https://www.assemblee-nationale.fr/dyn/17/questions/QANR5L17QE19795 https://questions.assemblee-nationale.fr/q17/17-19795QE.htm https://www.assemblee-nationale.fr/dyn/17/dossiers/RIN_DDF_LFSS_2027 https://www.assemblee-nationale.fr/dyn/17/dossiers/DLR5L17N55123 https://www.assemblee-nationale.fr/dyn/17/organes/commissions-permanentes/lois/agenda https://www.assemblee-nationale.fr/dyn/agenda; do echo "$(curl -sS -o /dev/null -m 20 -w '%{http_code} %{url_effective}' -L -A 'Mozilla/5.0' $u)  <- $u"; done
