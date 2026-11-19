@@ -17,9 +17,9 @@
 #  Mettez un "#" devant une ligne pour arrêter de la suivre.
 # ============================================================
 
-AN    | PO59051 | Commission des lois (AN)                     | tout
-AN    | PO59046 | Commission de la défense (AN)                | tout
+AN    | PO59051 | Commission des lois (AN)                     | mots-clés
+AN    | PO59046 | Commission de la défense (AN)                | mots-clés
 AN    | PO59048 | Commission des finances (AN)                 | mots-clés
-Sénat | lois    | Commission des lois (Sénat)                  | tout
-Sénat | étrangères | Commission des affaires étrangères et de la défense (Sénat) | tout
+Sénat | lois    | Commission des lois (Sénat)                  | mots-clés
+Sénat | étrangères | Commission des affaires étrangères et de la défense (Sénat) | mots-clés
 Sénat | finances | Commission des finances (Sénat)             | mots-clés
