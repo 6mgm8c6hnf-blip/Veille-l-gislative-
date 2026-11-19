@@ -102,6 +102,8 @@ class Senat:
         norm_org = self.ctx.norm(organe)
         commission = next((c for c in suivies if self.ctx.norm(c["code"]) in norm_org), None)
         if not themes and not (commission and commission["tout"]):
+            if "loi de finances" in self.ctx.norm(texte):  # aide au réglage : séances budgétaires écartées
+                print(f"     (écarté) {e.get('date')} {titre[:120]} | {organe[:60]}", flush=True)
             return None
         seance = "seance publique" in norm_org
         if re.match(r"\s*audition", titre, re.I) or "audition" in self.ctx.norm(titre)[:40]:
