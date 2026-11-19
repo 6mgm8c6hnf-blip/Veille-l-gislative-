@@ -22,7 +22,8 @@
 ## Gendarmerie
 # budget et programmation (ex-thème « Sécurité intérieure »)
 LOPMI
-mission Sécurités
+# « Sécurités » (au pluriel) = la mission budgétaire police + gendarmerie + sécurité civile
+Sécurités
 programme 152
 gendarm
 DGGN
