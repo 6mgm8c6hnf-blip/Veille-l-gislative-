@@ -1,4 +1,5 @@
 """Outils communs : lecture de la configuration, détection des mots-clés, téléchargements."""
+import html as _html
 import io
 import os
 import re
@@ -120,8 +121,42 @@ def texte_brut(html):
     if not html:
         return ""
     t = re.sub(r"<[^>]+>", " ", str(html))
-    t = t.replace("&nbsp;", " ").replace("&amp;", "&").replace("&#39;", "'").replace("&quot;", '"')
+    for _ in range(3):  # certaines sources encodent deux fois : "&amp;#160;"
+        if "&" not in t:
+            break
+        t = _html.unescape(t)
+    t = t.replace("\xa0", " ").replace("\u202f", " ")
     return re.sub(r"\s+", " ", t).strip()
+
+
+def resume_auteurs(libelle, max_noms=2):
+    """'Mme A, Mme B, M. C, ...' -> 'Mme A, Mme B et 28 autres signataires'.
+    Garde tel quel 'M. X et les membres du groupe Y'."""
+    t = texte_brut(libelle)
+    if not t:
+        return ""
+    if re.search(r"\bet les membres\b|\bgroupe\b", t, re.I) and t.count(",") < 2:
+        return t
+    noms = [n.strip() for n in re.split(r",\s*|\s+et\s+(?=(?:M\.|Mme|MM\.|Mmes)\s)", t) if n.strip()]
+    if len(noms) <= max_noms + 1:
+        return t
+    reste = len(noms) - max_noms
+    return ", ".join(noms[:max_noms]) + f" et {reste} autre{'s' if reste > 1 else ''} signataire{'s' if reste > 1 else ''}"
+
+
+def ligne_amendement(num, article, auteur):
+    """Une ligne lisible : 'Amendement n° 74 · article 5 · Mme Bentorki et 30 autres signataires'."""
+    morceaux = [f"Amendement n° {num}" if num else "Amendement"]
+    art = texte_brut(article)
+    if art:
+        art = re.sub(r"^ART(?:ICLE)?\.?\s*", "article ", art, flags=re.I)
+        art = re.sub(r"^APR[ÈE]S\s+ART(?:ICLE)?\.?\s*", "après l'article ", art, flags=re.I)
+        art = re.sub(r"^AVANT\s+ART(?:ICLE)?\.?\s*", "avant l'article ", art, flags=re.I)
+        morceaux.append(re.sub(r"(\d)ER\b", r"\1er", art))
+    aut = resume_auteurs(auteur)
+    if aut:
+        morceaux.append(aut)
+    return " · ".join(morceaux)
 
 
 def premier(x):

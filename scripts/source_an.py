@@ -3,7 +3,7 @@ import json
 import re
 from collections import defaultdict
 
-from commun import fichiers_zip, premier, telecharger, texte_brut
+from commun import fichiers_zip, ligne_amendement, premier, telecharger, texte_brut
 
 LEG = "17"
 BASE = f"https://data.assemblee-nationale.fr/static/openData/repository/{LEG}"
@@ -292,8 +292,7 @@ class AssembleeNationale:
             if len(g["exemples"]) < 8:
                 num = (a.get("identification") or {}).get("numeroLong")
                 art = ((a.get("pointeurFragmentTexte") or {}).get("division") or {}).get("articleDesignationCourte") or ""
-                auteur = texte_brut((a.get("signataires") or {}).get("libelle"))
-                g["exemples"].append(f"n° {num} {art} — {auteur}".strip())
+                g["exemples"].append(ligne_amendement(num, art, (a.get("signataires") or {}).get("libelle")))
         out = []
         for (dos_uid, texte_ref, date, org), g in groupes.items():
             d = self.dossier(dos_uid)
@@ -304,7 +303,8 @@ class AssembleeNationale:
                 titre=f"{g['n']} amendement{'s' if g['n'] > 1 else ''} déposé{'s' if g['n'] > 1 else ''} — {titre_txt}",
                 organe=lieu, texte_id=dos_uid if d.get("suivi") else None, texte_titre=d.get("titre"), texte_url=d.get("url"),
                 url=g["url"] or d.get("url"),
-                description="Exemples :\n" + "\n".join(g["exemples"]) + ("\n…" if g["n"] > len(g["exemples"]) else ""),
+                description=("Quelques amendements :\n" if g["n"] > len(g["exemples"]) else "Amendements :\n") + "\n".join("• " + x for x in g["exemples"])
+                + (f"\n… et {g['n'] - len(g['exemples'])} autres (voir la page officielle)" if g["n"] > len(g["exemples"]) else ""),
                 themes=sorted(set(g["themes"]) | set(d.get("themes") or [])),
             ))
         return out
