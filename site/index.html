@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veille parlementaire sécurité</title>
+<meta name="description" content="Calendrier des auditions, textes, amendements et questions sur la gendarmerie, la police et la sécurité civile à l'Assemblée nationale et au Sénat.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Veille parlementaire sécurité</h1>
+    <p class="sub">Gendarmerie, police, sécurité civile · Assemblée nationale et Sénat · <span id="maj">chargement…</span></p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="filters" aria-label="Filtres">
+    <div class="f-row">
+      <label class="f-search">
+        <span>Rechercher</span>
+        <input id="q" type="search" placeholder="Mot-clé : gendarmerie, LOPMI, pompiers…">
+      </label>
+      <label>
+        <span>Texte</span>
+        <select id="texte"><option value="">Tous les textes</option></select>
+      </label>
+      <label>
+        <span>Thème</span>
+        <select id="theme"><option value="">Tous les thèmes</option></select>
+      </label>
+    </div>
+    <div class="f-row">
+      <fieldset>
+        <legend>Chambre</legend>
+        <div id="chambres" class="chips"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Type</legend>
+        <div id="types" class="chips"></div>
+      </fieldset>
+    </div>
+    <div class="f-row f-actions">
+      <label class="check"><input id="avenir" type="checkbox" checked> Seulement à venir et 30 derniers jours</label>
+      <span id="count" class="count"></span>
+      <button id="reset" type="button" class="btn ghost">Effacer les filtres</button>
+      <button id="ics" type="button" class="btn">Exporter vers mon agenda (.ics)</button>
+      <button id="share" type="button" class="btn ghost">Copier le lien de cette vue</button>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-view="liste" aria-selected="true">Liste</button>
+    <button role="tab" data-view="calendrier" aria-selected="false">Calendrier</button>
+  </nav>
+
+  <section id="v-liste" class="view"></section>
+  <section id="v-calendrier" class="view" hidden>
+    <div class="cal-bar">
+      <button type="button" class="btn ghost" id="cal-prev" aria-label="Période précédente">‹</button>
+      <button type="button" class="btn ghost" id="cal-today">Aujourd'hui</button>
+      <button type="button" class="btn ghost" id="cal-next" aria-label="Période suivante">›</button>
+      <h2 id="cal-titre"></h2>
+      <div class="seg">
+        <button type="button" data-mode="mois" aria-pressed="true">Mois</button>
+        <button type="button" data-mode="semaine" aria-pressed="false">Semaine</button>
+      </div>
+    </div>
+    <div id="cal"></div>
+  </section>
+
+  <dialog id="detail">
+    <form method="dialog"><button class="close" aria-label="Fermer">×</button></form>
+    <div id="detail-body"></div>
+  </dialog>
+</main>
+
+<footer class="wrap foot">
+  Sources : <a href="https://data.assemblee-nationale.fr/">data.assemblee-nationale.fr</a> et
+  <a href="https://data.senat.fr/">data.senat.fr</a> (données ouvertes, mises à jour chaque jour).
+  Chaque événement renvoie vers sa page officielle. Vérifiez toujours sur la source avant diffusion.
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
