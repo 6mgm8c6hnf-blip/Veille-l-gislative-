@@ -6,6 +6,7 @@ import re
 import time
 import urllib.request
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 from commun import UA, telecharger, texte_brut
@@ -159,51 +160,63 @@ class Senat:
                   and d["date"] and d["date"] >= ctx.debut_fenetre_textes]
         actifs.sort(key=lambda d: d["date"], reverse=True)
         print(f"   Sénat : {len(actifs)} textes en cours à examiner pour les amendements", flush=True)
-        limite = time.time() + 600  # au plus 10 minutes pour cette étape
-        for d in actifs:
-            if time.time() > limite:
-                print("   Sénat : temps maximal atteint pour les amendements, on s'arrête là", flush=True)
-                break
-            try:
-                page = (_get(d["url"]) or b"").decode("utf-8", "replace")
-            except Exception:
-                continue
-            textes = set(re.findall(r"/leg/(?:pjl|ppl|ppr|tas)(\d{2})-(\d+)\.html", page))
-            textes |= set(re.findall(r"/(?:enseance|encommission|amendements(?:/commissions)?)/(\d{4})-\d{4}/(\d+)/", page))
-            groupes = defaultdict(lambda: {"n": 0, "ex": [], "url": None})
-            for an, num in textes:
-                an = an if len(an) == 4 else "20" + an
-                session = f"{an}-{int(an) + 1}"
-                for genre, url in (("séance", f"https://www.senat.fr/amendements/{session}/{num}/jeu_complet_{session}_{num}.csv"),
-                                   ("commission", f"https://www.senat.fr/amendements/commissions/{session}/{num}/jeu_complet_commission_{session}_{num}.csv")):
-                    try:
-                        brut = _get(url)
-                    except Exception:
+        limite = time.time() + 480  # au plus 8 minutes pour cette étape
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futurs = [pool.submit(self._amendements_dossier, d, limite) for d in actifs]
+            for f in futurs:
+                try:
+                    out.extend(f.result())
+                except Exception as e:
+                    print(f"   Sénat amendements : {e}", flush=True)
+        if time.time() > limite:
+            print("   Sénat : temps maximal atteint pour les amendements (liste partielle)", flush=True)
+        return out
+
+    def _amendements_dossier(self, d, limite):
+        ctx = self.ctx
+        out = []
+        if time.time() > limite:
+            return out
+        try:
+            page = (_get(d["url"], timeout=20, essais=2) or b"").decode("utf-8", "replace")
+        except Exception:
+            return out
+        textes = set(re.findall(r"/leg/(?:pjl|ppl|ppr|tas)(\d{2})-(\d+)\.html", page))
+        textes |= set(re.findall(r"/(?:enseance|encommission|amendements(?:/commissions)?)/(\d{4})-\d{4}/(\d+)/", page))
+        groupes = defaultdict(lambda: {"n": 0, "ex": [], "url": None})
+        for an, num in textes:
+            an = an if len(an) == 4 else "20" + an
+            session = f"{an}-{int(an) + 1}"
+            for genre, url in (("séance", f"https://www.senat.fr/amendements/{session}/{num}/jeu_complet_{session}_{num}.csv"),
+                               ("commission", f"https://www.senat.fr/amendements/commissions/{session}/{num}/jeu_complet_commission_{session}_{num}.csv")):
+                if time.time() > limite:
+                    break
+                try:
+                    brut = _get(url, timeout=20, essais=2)
+                except Exception:
+                    continue
+                if not brut:
+                    continue
+                lignes = brut.decode("latin-1", "replace").splitlines()
+                if lignes and lignes[0].startswith("sep="):
+                    lignes = lignes[1:]
+                for row in csv.DictReader(lignes, delimiter="\t"):
+                    row = {(k or "").strip(): (v or "").strip() for k, v in row.items()}
+                    jour = (row.get("Date de dépôt") or "")[:10]
+                    if not re.match(r"\d{4}-\d{2}-\d{2}", jour) or not ctx.dans_fenetre(jour):
                         continue
-                    if not brut:
-                        continue
-                    texte = brut.decode("latin-1", "replace")
-                    lignes = texte.splitlines()
-                    if lignes and lignes[0].startswith("sep="):
-                        lignes = lignes[1:]
-                    for row in csv.DictReader(lignes, delimiter="\t"):
-                        row = {(k or "").strip(): (v or "").strip() for k, v in row.items()}
-                        jour = (row.get("Date de dépôt") or "")[:10]
-                        if not re.match(r"\d{4}-\d{2}-\d{2}", jour) or not ctx.dans_fenetre(jour):
-                            continue
-                        g = groupes[(jour, genre, num)]
-                        g["n"] += 1
-                        g["url"] = g["url"] or row.get("Url amendement")
-                        if len(g["ex"]) < 8:
-                            g["ex"].append(f"n° {row.get('Numéro')} {row.get('Subdivision', '')} — {row.get('Auteur', '')}".strip())
-            for (jour, genre, num), g in groupes.items():
-                out.append(ctx.evenement(
-                    id=f"senat-am-{num}-{genre}-{jour}", debut=jour, journee=True, chambre="Sénat", type="Amendements",
-                    titre=f"{g['n']} amendement{'s' if g['n'] > 1 else ''} déposé{'s' if g['n'] > 1 else ''} ({genre}) — {d['titre']}",
-                    organe="Séance publique" if genre == "séance" else "Commission", texte_id=d["url"], texte_titre=d["titre"],
-                    texte_url=d["url"], url=(g["url"] or d["url"]).replace("http://", "https://"),
-                    description="Exemples :\n" + "\n".join(g["ex"]), themes=d["themes"]))
-            time.sleep(0.3)
+                    g = groupes[(jour, genre, num)]
+                    g["n"] += 1
+                    g["url"] = g["url"] or row.get("Url amendement")
+                    if len(g["ex"]) < 8:
+                        g["ex"].append(f"n° {row.get('Numéro')} {row.get('Subdivision', '')} — {row.get('Auteur', '')}".strip())
+        for (jour, genre, num), g in groupes.items():
+            out.append(ctx.evenement(
+                id=f"senat-am-{num}-{genre}-{jour}", debut=jour, journee=True, chambre="Sénat", type="Amendements",
+                titre=f"{g['n']} amendement{'s' if g['n'] > 1 else ''} déposé{'s' if g['n'] > 1 else ''} ({genre}) — {d['titre']}",
+                organe="Séance publique" if genre == "séance" else "Commission", texte_id=d["url"], texte_titre=d["titre"],
+                texte_url=d["url"], url=(g["url"] or d["url"]).replace("http://", "https://"),
+                description="Exemples :\n" + "\n".join(g["ex"]), themes=d["themes"]))
         return out
 
     # ---------- questions ----------
@@ -217,7 +230,7 @@ class Senat:
                 rep = (row.get("Date de réponse JO") or "")[:10]
                 titre = row.get("Titre") or ""
                 ministere = row.get("Ministère de dépôt") or ""
-                themes = det.themes(titre, row.get("Thème(s)"), ministere, row.get("Ministère de réponse"))
+                themes = det.themes(titre, row.get("Thème(s)"))
                 if not themes:
                     continue
                 auteur = " ".join(x for x in [row.get("Civilité"), row.get("Prénom"), row.get("Nom")] if x)

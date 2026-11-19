@@ -156,8 +156,6 @@ class AssembleeNationale:
                 titre = titre[:217] + "…"
             if etat.lower().startswith("annul"):
                 titre = "[ANNULÉE] " + titre
-            elif etat.lower().startswith("eventuel"):
-                titre = "(éventuelle) " + titre
             dos_principal = (dos_suivis or dossiers or [None])[0]
             d = self.dossier(dos_principal) if dos_principal else {}
             huis = None
@@ -165,6 +163,11 @@ class AssembleeNationale:
                 huis = r.get("ouverturePresse") == "false"
             if any(p.get("comiteSecret") == "true" for p in points):
                 huis = True
+            nt = ctx.norm(texte)
+            if "huis clos" in nt:
+                huis = True
+            elif re.search(r"ouverte? a la presse", nt):
+                huis = False
             out.append(ctx.evenement(
                 id=uid, debut=debut, fin=_date(r.get("timeStampFin")), chambre=chambre, type=typ, titre=titre,
                 organe=self.nom_organe(organe) or ("Séance publique" if seance else organe),
@@ -332,7 +335,7 @@ class AssembleeNationale:
                     d_r = None
                 if not ((d_q and ctx.dans_fenetre(d_q)) or (d_r and ctx.dans_fenetre(d_r))):
                     continue
-                themes = det.themes(analyse, rubrique, texte, ministere)
+                themes = det.themes(analyse, rubrique, texte)
                 if not themes:
                     continue
                 auteur = (q.get("auteur") or {}).get("groupe", {}) or {}

@@ -73,7 +73,9 @@ def telecharger(url, nom=None, max_age_h=6):
     """Télécharge url dans le cache (réutilisé s'il a moins de max_age_h heures). Renvoie le chemin."""
     CACHE.mkdir(parents=True, exist_ok=True)
     dest = CACHE / (nom or re.sub(r"[^A-Za-z0-9._-]", "_", url.split("://", 1)[-1])[-150:])
-    if dest.exists() and time.time() - dest.stat().st_mtime < max_age_h * 3600 and dest.stat().st_size > 0:
+    est_zip = url.lower().endswith(".zip")
+    if dest.exists() and time.time() - dest.stat().st_mtime < max_age_h * 3600 and dest.stat().st_size > 0 \
+            and (not est_zip or zipfile.is_zipfile(dest)):
         return dest
     derniere = None
     for essai in range(3):
@@ -85,11 +87,13 @@ def telecharger(url, nom=None, max_age_h=6):
                     if not bloc:
                         break
                     f.write(bloc)
+            if est_zip and not zipfile.is_zipfile(str(dest) + ".part"):
+                raise RuntimeError("archive incomplète (fichier en cours de mise à jour côté source ?)")
             os.replace(str(dest) + ".part", dest)
             return dest
         except Exception as e:  # réseau capricieux : on réessaie
             derniere = e
-            time.sleep(5 * (essai + 1))
+            time.sleep(30 * (essai + 1))
     raise RuntimeError(f"téléchargement impossible {url} : {derniere}")
 
 

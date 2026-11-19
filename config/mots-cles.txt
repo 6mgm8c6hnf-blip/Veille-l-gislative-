@@ -46,8 +46,6 @@ secours
 
 ## Sécurité intérieure
 sécurité intérieure
-ministère de l'intérieur
-ministre de l'intérieur
 LOPMI
 mission Sécurités
 programme 152

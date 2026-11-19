@@ -153,6 +153,7 @@
     let h = '<span class="tag ' + (e.chambre === "AN" ? "AN" : "Senat") + '">' + (e.chambre === "AN" ? "Assemblée" : "Sénat") + "</span>";
     h += '<span class="tag">' + esc(e.type) + "</span>";
     if (e.huis_clos === true) h += '<span class="tag hc">huis clos</span>';
+    if (/^even/i.test(e.etat || "")) h += '<span class="tag">à confirmer</span>';
     (e.themes || []).slice(0, 3).forEach((t) => (h += '<span class="tag kw">' + esc(t) + "</span>"));
     return h;
   }
