@@ -18,7 +18,7 @@ NATURE = {"QE": "Question écrite", "QOSD": "Question orale", "QO": "Question or
           "QC": "Question cribles", "QOAD": "Question orale avec débat"}
 
 
-def _get(url, timeout=60):
+def _get(url, timeout=40):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json, text/html, */*"})
     for essai in range(3):
         try:
@@ -151,9 +151,16 @@ class Senat:
     def amendements(self):
         ctx = self.ctx
         out = []
-        actifs = [d for d in self.dossiers.values() if d["suivi"] and not d["promulgation"]
+        fini = re.compile(r"promulgu|caduc|rejet|retir|adopt", re.I)
+        actifs = [d for d in self.dossiers.values() if d["suivi"] and not d["promulgation"] and not fini.search(d["etat"])
                   and d["date"] and d["date"] >= ctx.debut_fenetre_textes]
+        actifs.sort(key=lambda d: d["date"], reverse=True)
+        print(f"   Sénat : {len(actifs)} textes en cours à examiner pour les amendements", flush=True)
+        limite = time.time() + 600  # au plus 10 minutes pour cette étape
         for d in actifs:
+            if time.time() > limite:
+                print("   Sénat : temps maximal atteint pour les amendements, on s'arrête là", flush=True)
+                break
             try:
                 page = (_get(d["url"]) or b"").decode("utf-8", "replace")
             except Exception:
