@@ -217,16 +217,16 @@ class Senat:
                     g = groupes[(jour, genre, num)]
                     g["n"] += 1
                     g["url"] = g["url"] or row.get("Url amendement")
-                    if len(g["ex"]) < 8:
-                        g["ex"].append(ligne_amendement(row.get("Numéro"), row.get("Subdivision"), row.get("Auteur")))
+                    if len(g["ex"]) < 60:
+                        g["ex"].append({"t": ligne_amendement(row.get("Numéro"), row.get("Subdivision"), row.get("Auteur")),
+                                         "u": _https(row.get("Url amendement") or "") or None})
         for (jour, genre, num), g in groupes.items():
             out.append(ctx.evenement(
                 id=f"senat-am-{num}-{genre}-{jour}", debut=jour, journee=True, chambre="Sénat", type="Amendements",
                 titre=f"{g['n']} amendement{'s' if g['n'] > 1 else ''} déposé{'s' if g['n'] > 1 else ''} ({genre}) — {d['titre']}",
                 organe="Séance publique" if genre == "séance" else "Commission", texte_id=d["url"], texte_titre=d["titre"],
                 texte_url=d["url"], url=_https(g["url"] or d["url"]),
-                description=("Quelques amendements :\n" if g["n"] > len(g["ex"]) else "Amendements :\n") + "\n".join("• " + x for x in g["ex"])
-                + (f"\n… et {g['n'] - len(g['ex'])} autres (voir la page officielle)" if g["n"] > len(g["ex"]) else ""),
+                amendements=g["ex"], amendements_autres=max(0, g["n"] - len(g["ex"])),
                 themes=d["themes"]))
         return out
 

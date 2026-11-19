@@ -107,3 +107,8 @@ dialog .close { float: right; border: 0; background: none; font-size: 1.6rem; li
   .f-row > label { flex: 1 1 100%; }
   .count { flex-basis: 100%; }
 }
+
+#detail-body .am { white-space: normal; }
+#detail-body .am ul { margin: 6px 0 0; padding-left: 18px; }
+#detail-body .am li { margin: 3px 0; }
+#detail-body .am .more { margin: 6px 0 0; color: var(--muted, #666); }

@@ -40,7 +40,7 @@
     });
 
   function init(data) {
-    ALL = (data.evenements || []).map((e) => Object.assign(e, { _s: norm([e.titre, e.description, e.organe, e.texte_titre, (e.themes || []).join(" ")].join(" ")) }));
+    ALL = (data.evenements || []).map((e) => Object.assign(e, { _s: norm([e.titre, e.description, (e.amendements || []).map((a) => a.t).join(" "), e.organe, e.texte_titre, (e.themes || []).join(" ")].join(" ")) }));
     ALL.sort((a, b) => a.debut.localeCompare(b.debut));
     const d = data.genere_le ? new Date(data.genere_le) : null;
     $("maj").textContent = d ? "mis à jour le " + d.toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "";
@@ -254,6 +254,14 @@
     if (!$("detail").open) $("detail").showModal();
   }
 
+  function amList(e) {
+    const am = e.amendements || []; if (!am.length) return "";
+    const li = am.map((a) => "<li>" + (a.u ? '<a href="' + esc(a.u) + '" target="_blank" rel="noopener">' + esc(a.t) + " ↗</a>" : esc(a.t)) + "</li>").join("");
+    const autres = e.amendements_autres ? '<p class="more">… et ' + e.amendements_autres + " autre" + (e.amendements_autres > 1 ? "s" : "") +
+      (e.url ? ' : <a href="' + esc(e.url) + '" target="_blank" rel="noopener">voir la page officielle ↗</a>' : "") + "</p>" : "";
+    return '<div class="desc am"><strong>Amendements</strong><ul>' + li + "</ul>" + autres + "</div>";
+  }
+
   function openDetail(id) {
     const e = ALL.find((x) => x.id === id); if (!e) return;
     const row = (k, v) => (v ? "<dt>" + k + "</dt><dd>" + v + "</dd>" : "");
@@ -265,7 +273,7 @@
       row("Texte", e.texte_titre ? (e.texte_url ? '<a href="' + esc(e.texte_url) + '" target="_blank" rel="noopener">' + esc(e.texte_titre) + "</a>" : esc(e.texte_titre)) : "") +
       row("Mots-clés", esc((e.themes || []).join(", "))) +
       row("Source", e.url ? '<a href="' + esc(e.url) + '" target="_blank" rel="noopener">Voir la page officielle ↗</a>' : "") +
-      "</dl>" + (e.description ? '<div class="desc">' + esc(e.description) + "</div>" : "");
+      "</dl>" + (e.description ? '<div class="desc">' + esc(e.description) + "</div>" : "") + amList(e);
     if (!$("detail").open) $("detail").showModal();
   }
 

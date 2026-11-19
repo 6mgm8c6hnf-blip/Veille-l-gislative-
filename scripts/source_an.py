@@ -45,6 +45,9 @@ def _date(ts):
     return m.group(1) + ("T" + m.group(2) if m.group(2) and m.group(2) != "00:00" else "")
 
 
+MAX_LIENS = 60  # amendements listés (avec lien) par événement
+
+
 class AssembleeNationale:
     def __init__(self, ctx):
         self.ctx = ctx  # contexte partagé (détecteur, fenêtre de dates, commissions…)
@@ -289,10 +292,11 @@ class AssembleeNationale:
             g["themes"].update(themes)
             g["organe"] = org.group(0) if org else None
             g["url"] = g.get("url") or f"{SITE}/dyn/{LEG}/amendements/{a.get('uid')}"
-            if len(g["exemples"]) < 8:
+            if len(g["exemples"]) < MAX_LIENS:
                 num = (a.get("identification") or {}).get("numeroLong")
                 art = ((a.get("pointeurFragmentTexte") or {}).get("division") or {}).get("articleDesignationCourte") or ""
-                g["exemples"].append(ligne_amendement(num, art, (a.get("signataires") or {}).get("libelle")))
+                g["exemples"].append({"t": ligne_amendement(num, art, (a.get("signataires") or {}).get("libelle")),
+                                      "u": f"{SITE}/dyn/{LEG}/amendements/{a.get('uid')}"})
         out = []
         for (dos_uid, texte_ref, date, org), g in groupes.items():
             d = self.dossier(dos_uid)
@@ -303,8 +307,7 @@ class AssembleeNationale:
                 titre=f"{g['n']} amendement{'s' if g['n'] > 1 else ''} déposé{'s' if g['n'] > 1 else ''} — {titre_txt}",
                 organe=lieu, texte_id=dos_uid if d.get("suivi") else None, texte_titre=d.get("titre"), texte_url=d.get("url"),
                 url=g["url"] or d.get("url"),
-                description=("Quelques amendements :\n" if g["n"] > len(g["exemples"]) else "Amendements :\n") + "\n".join("• " + x for x in g["exemples"])
-                + (f"\n… et {g['n'] - len(g['exemples'])} autres (voir la page officielle)" if g["n"] > len(g["exemples"]) else ""),
+                amendements=g["exemples"], amendements_autres=max(0, g["n"] - len(g["exemples"])),
                 themes=sorted(set(g["themes"]) | set(d.get("themes") or [])),
             ))
         return out
