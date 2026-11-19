@@ -32,28 +32,39 @@ def lire_lignes(nom):
 
 
 class Detecteur:
-    """Repère les thèmes (fichier mots-cles.txt) présents dans un texte."""
+    """Repère les thèmes (fichier mots-cles.txt) présents dans un texte.
+
+    Une ligne qui commence par "+" est un mot-clé d'appui : il ne compte que si
+    le texte contient aussi au moins un mot-clé principal (sans "+").
+    """
 
     def __init__(self):
-        self.regles = []  # (theme, regex)
+        self.regles = []  # (theme, regex, appui)
         theme = "Divers"
         for ligne in lire_lignes("mots-cles.txt"):
             if ligne.startswith("##"):
                 theme = ligne.lstrip("#").strip() or "Divers"
                 continue
+            appui = ligne.startswith("+")
+            ligne = ligne.lstrip("+").strip()
+            if not ligne:
+                continue
             mot = norm(ligne)
             # un mot-clé en MAJUSCULES courtes (sigle) doit être un mot entier : CRS, SDIS…
             sigle = ligne.isupper() and len(ligne) <= 6
             motif = r"(?<![a-z0-9])" + re.escape(mot) + (r"(?![a-z0-9])" if sigle else "")
-            self.regles.append((theme, re.compile(motif)))
+            self.regles.append((theme, re.compile(motif), appui))
 
     def themes(self, *textes):
         t = norm(" ".join(x for x in textes if x))
-        vus = []
-        for theme, rx in self.regles:
-            if theme not in vus and rx.search(t):
-                vus.append(theme)
-        return vus
+        principaux, appuis = [], []
+        for theme, rx, appui in self.regles:
+            cible = appuis if appui else principaux
+            if theme not in cible and rx.search(t):
+                cible.append(theme)
+        if not principaux:
+            return []
+        return principaux + [x for x in appuis if x not in principaux]
 
 
 def lire_commissions():
