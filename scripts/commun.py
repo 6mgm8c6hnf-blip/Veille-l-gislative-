@@ -68,6 +68,26 @@ class Detecteur:
         return principaux + [x for x in appuis if x not in principaux]
 
 
+    def themes_corps(self, texte, seuil=3):
+        """Pour le corps d'un texte (long) : il faut au moins `seuil` occurrences
+        de mots-clés principaux, pour éviter qu'une seule mention isolée suffise."""
+        t = norm(texte)
+        total, principaux, appuis = 0, [], []
+        for theme, rx, appui in self.regles:
+            n = len(rx.findall(t))
+            if not n:
+                continue
+            if appui:
+                appuis.append(theme)
+            else:
+                total += n
+                if theme not in principaux:
+                    principaux.append(theme)
+        if total < seuil:
+            return []
+        return principaux + [x for x in dict.fromkeys(appuis) if x not in principaux]
+
+
 def lire_commissions():
     res = []
     for ligne in lire_lignes("commissions.txt"):
